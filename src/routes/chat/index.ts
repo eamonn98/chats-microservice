@@ -14,7 +14,9 @@ interface IReply {
 }
 
 interface IBody {
-  cypher: string
+  user: string,
+  room: string,
+  message: string
 }
 
 const example: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
@@ -28,10 +30,8 @@ const example: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
   });
 
   fastify.post<{Body: IBody}>('/', async (request, reply) => {
-    const cypher = request.body.cypher;
-    console.log(cypher);
-
-    const res = await fastify.runCypher(cypher);
+    const {user, room, message} = request.body;
+    const res = await fastify.sendChat(user, room, message);
 
     reply.code(200).send({resp: res});
   });

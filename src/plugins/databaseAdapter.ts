@@ -46,11 +46,9 @@ const parseNeo4jObject = (neo4jObject: Neo4jResult) => {
 // to export the decorators to the outer scope
 export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
   
-  fastify.decorate('sendChat', async function(user: string, room: string, message: string): Promise<void> {
+  fastify.decorate('sendChat', async function(username: string, room: string, message: string): Promise<void> {
     connect();
     const cqlQuery = `
-    MERGE (r:Room { name: $room});
-
     MATCH (r:Room {name: $room})
     MATCH (u:User {username: $username})
     CREATE (r)-[r1:CONTAINS]->(m:Chat {message: $message, created: datetime()})-[r2:SENT_BY]->(u);
@@ -58,9 +56,10 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
     console.log(`cqlQuery: ${cqlQuery}`);
     await driver.executeQuery(
       cqlQuery,
-      { user, room, message },
+      { username, room, message },
       { database: 'neo4j' }
     );
+    // TODO: Check room, user and message all exist and validate
 
     await driver.close();
   })
@@ -80,12 +79,44 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
     return chats;
   });
 
-  fastify.decorate('createUser', function(user: string, password: string, email: string) {
-    return false
+  fastify.decorate('createUser', async function(username: string, password: string, email: string) {
+    connect();
+    const cqlQuery = `
+    CREATE (u:User {username: $username, password: $password, email: $email});
+    `;
+    console.log(`cqlQuery: ${cqlQuery}`);
+    await driver.executeQuery(
+      cqlQuery,
+      { username, password, email },
+      { database: 'neo4j' }
+    );
+    // TODO: Check room, user and message all exist and validate
+
+    await driver.close();
+
+    return true;
   });
 
-  fastify.decorate('authenticateUser', function(user: string, password: string) {
-    return false;
+  fastify.decorate('authenticateUser', async function(username: string, password: string) {
+    connect();
+    const cqlQuery = `
+    MATCH (u:User {username: $username, password: $password}) RETURN u;
+    `;
+    console.log(`cqlQuery: ${cqlQuery}`);
+    const result = await driver.executeQuery(
+      cqlQuery,
+      { username, password },
+      { database: 'neo4j' }
+    );
+    // TODO: Check room, user and message all exist and validate
+
+    await driver.close();
+
+    if(parseNeo4jObject(result).length > 0) {
+      return true;
+    }
+
+    return false
   });
 
 
@@ -105,10 +136,10 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
 // When using .decorate you have to specify added properties for Typescript
 declare module 'fastify' {
   export interface FastifyInstance {
-    sendChat(user: string, room: string, message: string): void;
+    sendChat(username: string, room: string, message: string): void;
     getChats(room: string): unknown;
-    createUser(user: string, password: string, email: string): boolean;
-    authenticateUser(user: string, password: string): boolean;
+    createUser(username: string, password: string, email: string): Promise<boolean>;
+    authenticateUser(username: string, password: string): Promise<boolean>;
 
     runCypher(cypher: string): any;
   }
