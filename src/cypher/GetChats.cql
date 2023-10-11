@@ -1,0 +1,1 @@
+MATCH (r:Room {name: $room})-[c:CONTAINS]->(m:Chat)-[s:SENT_BY]->(u) WHERE m.created > datetime($fromDate) RETURN m.message AS message, apoc.date.toISO8601(m.created.epochMillis, "ms") AS created, u.username AS username;

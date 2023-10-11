@@ -1,8 +1,12 @@
 import { FastifyPluginAsync } from "fastify"
 
+interface IBody {
+  cypher: string
+}
+
 const example: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
-  fastify.get('/', async function (request, reply) {
-    return 'this is an example'
+  fastify.post<{Body: IBody}>('/', async function (request, reply) {
+    return await fastify.runCypher(request.body.cypher);
   })
 }
 

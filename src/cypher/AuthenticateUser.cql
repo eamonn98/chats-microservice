@@ -1,0 +1,1 @@
+MATCH (u:User {username: $username, password: $password}) RETURN u;

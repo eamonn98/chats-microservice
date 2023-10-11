@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from "fastify"
 
 interface IQuerystring {
   room: string;
+  from?: string;
 }
 
 interface IHeaders {
@@ -25,8 +26,8 @@ const example: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     Headers: IHeaders,
     Reply: IReply
   }>('/', async (request, reply) => {
-    const { room } = request.query
-    reply.code(200).send({chats: await fastify.getChats(room)});
+    const { room, from } = request.query
+    reply.code(200).send({chats: await fastify.getChats(room, from)});
   });
 
   fastify.post<{Body: IBody}>('/', async (request, reply) => {

@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin'
 import neo4j from 'neo4j-driver';
+import { getQuery } from '../cypher/QueryManager';
 
 export interface DatabaseAdapterPluginOptions {
   // Specify DatabaseAdapter plugin options here
@@ -45,14 +46,10 @@ const parseNeo4jObject = (neo4jObject: Neo4jResult) => {
 // The use of fastify-plugin is required to be able
 // to export the decorators to the outer scope
 export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
-  
+
   fastify.decorate('sendChat', async function(username: string, room: string, message: string): Promise<void> {
     connect();
-    const cqlQuery = `
-    MATCH (r:Room {name: $room})
-    MATCH (u:User {username: $username})
-    CREATE (r)-[r1:CONTAINS]->(m:Chat {message: $message, created: datetime()})-[r2:SENT_BY]->(u);
-    `;
+    const cqlQuery = await getQuery('SendChat');
     console.log(`cqlQuery: ${cqlQuery}`);
     await driver.executeQuery(
       cqlQuery,
@@ -64,12 +61,17 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
     await driver.close();
   })
 
-  fastify.decorate('getChats', async function(room: string) {
+  fastify.decorate('getChats', async function(room: string, from?: string) {
     connect();
-    const cqlQuery = 'MATCH (r:Room {name: $room})-[c:CONTAINS]->(m:Chat)-[s:SENT_BY]->(u) RETURN m.message AS message, apoc.date.toISO8601(m.createdAt.epochMillis, "ms") AS createdAt, u.username AS username;';
+
+    const fromDate = from != null ? from : '1970-01-01';
+    console.log(`From: ${from?.toString()} - fromDate: ${fromDate.toString()}`)
+    // const cqlQuery = 'MATCH (r:Room {name: $room})-[c:CONTAINS]->(m:Chat)-[s:SENT_BY]->(u) WHERE m.created > datetime($fromDate) RETURN m.message AS message, apoc.date.toISO8601(m.created.epochMillis, "ms") AS created, u.username AS username;';
+
+    const cqlQuery = await getQuery('GetChats');
     const result = await driver.executeQuery(
       cqlQuery,
-      { room },
+      { room, fromDate },
       { database: 'neo4j' }
     );
     await driver.close();
@@ -81,9 +83,7 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
 
   fastify.decorate('createUser', async function(username: string, password: string, email: string) {
     connect();
-    const cqlQuery = `
-    CREATE (u:User {username: $username, password: $password, email: $email});
-    `;
+    const cqlQuery = await getQuery('CreateUser');
     console.log(`cqlQuery: ${cqlQuery}`);
     await driver.executeQuery(
       cqlQuery,
@@ -99,9 +99,7 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
 
   fastify.decorate('authenticateUser', async function(username: string, password: string) {
     connect();
-    const cqlQuery = `
-    MATCH (u:User {username: $username, password: $password}) RETURN u;
-    `;
+    const cqlQuery = await getQuery('AuthenticateUser');
     console.log(`cqlQuery: ${cqlQuery}`);
     const result = await driver.executeQuery(
       cqlQuery,
@@ -112,7 +110,7 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
 
     await driver.close();
 
-    if(parseNeo4jObject(result).length > 0) {
+    if (parseNeo4jObject(result).length > 0) {
       return true;
     }
 
@@ -137,7 +135,7 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
 declare module 'fastify' {
   export interface FastifyInstance {
     sendChat(username: string, room: string, message: string): void;
-    getChats(room: string): unknown;
+    getChats(room: string, from?: string): unknown;
     createUser(username: string, password: string, email: string): Promise<boolean>;
     authenticateUser(username: string, password: string): Promise<boolean>;
 
