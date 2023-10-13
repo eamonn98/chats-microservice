@@ -1,1 +1,1 @@
-CREATE (u:User {username: $username, password: $password, email: $email});
+CREATE (u:User {username: $username, password: $password, email: $email, deleted: false, admin: false});

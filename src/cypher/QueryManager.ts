@@ -14,6 +14,7 @@ const getQuery = async (queryName: string) => {
     return cachedQueries[0].cql;
   }
 
+  // Lazy load the query from a file
   const cql = await fsPromises.readFile(`src/cypher/${queryName}.cql`, { encoding: 'utf-8' });
 
   queryCache.push({ queryName, cql });

@@ -1,6 +1,7 @@
 import { join } from 'path';
 import AutoLoad, {AutoloadPluginOptions} from '@fastify/autoload';
 import { FastifyPluginAsync, FastifyServerOptions } from 'fastify';
+import swagger from '@fastify/swagger';
 import cors from '@fastify/cors';
 
 export interface AppOptions extends FastifyServerOptions, Partial<AutoloadPluginOptions> {
@@ -36,6 +37,19 @@ const app: FastifyPluginAsync<AppOptions> = async (
   await fastify.register(cors, { 
     origin: '*'
   })
+
+  await fastify.register(swagger, {
+    swagger: {
+      info: {
+        title: 'Chat API',
+        description: 'A set of REST API endpoints for a chat application',
+        version: '0.0.0'
+      },
+      schemes: ['https'],
+      consumes: ['application/json'],
+      produces: ['application/json']
+    }
+  });
 
 };
 

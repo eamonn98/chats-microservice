@@ -83,7 +83,22 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
 
   fastify.decorate('createUser', async function(username: string, password: string, email: string) {
     connect();
-    const cqlQuery = await getQuery('CreateUser');
+    const cqlQuery = await getQuery('CreateUser'); 
+
+    const getUserCqlQuery = await getQuery('GetUser');
+    const userResult = await driver.executeQuery(
+      getUserCqlQuery,
+      { username },
+      { database: 'neo4j' }
+    );
+
+    // TODO: If user exists userResult.length > 0 then prevent creation
+
+    if(userResult != null && userResult.records.length > 0) {
+      console.log(`User ${username} already exists`);
+      console.log(JSON.stringify(userResult));
+      return false;
+    }
     console.log(`cqlQuery: ${cqlQuery}`);
     await driver.executeQuery(
       cqlQuery,
@@ -118,6 +133,49 @@ export default fp<DatabaseAdapterPluginOptions>(async (fastify, opts) => {
   });
 
 
+  fastify.decorate('resetPassword', async function(username: string, password: string, newPassword: string) {
+    connect();
+    const cqlQuery = await getQuery('UpdatePassword');
+    console.log(`reset pw cqlQuery: ${cqlQuery}`);
+    const result = await driver.executeQuery(
+      cqlQuery,
+      { username, password, newPassword },
+      { database: 'neo4j' }
+    );
+    // TODO: Check room, user and message all exist and validate
+
+    await driver.close();
+
+    if (parseNeo4jObject(result).length > 0) {
+      console.log(parseNeo4jObject(result));
+      return true;
+    }
+
+    return false
+  });
+
+
+  fastify.decorate('deleteUser', async function(username: string, password: string, newPassword: string) {
+    connect();
+    const cqlQuery = await getQuery('DeleteUser');
+    console.log(`delete user cqlQuery: ${cqlQuery}`);
+    const result = await driver.executeQuery(
+      cqlQuery,
+      { username, password },
+      { database: 'neo4j' }
+    );
+    // TODO: Check room, user and message all exist and validate
+
+    await driver.close();
+
+    if (parseNeo4jObject(result).length > 0) {
+      return true;
+    }
+
+    return false;
+  });
+  
+
   fastify.decorate('runCypher', async function(cypher: string) {
     connect();
     const result = await driver.executeQuery(
@@ -138,6 +196,8 @@ declare module 'fastify' {
     getChats(room: string, from?: string): unknown;
     createUser(username: string, password: string, email: string): Promise<boolean>;
     authenticateUser(username: string, password: string): Promise<boolean>;
+    resetPassword(username: string, password: string, newPassword: string): Promise<boolean>;
+    deleteUser(username: string, password: string): Promise<boolean>;
 
     runCypher(cypher: string): any;
   }

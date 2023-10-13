@@ -1,0 +1,1 @@
+MATCH (u:User {username: $username, password: $password}) SET u.password = $newPassword RETURN u.username;
